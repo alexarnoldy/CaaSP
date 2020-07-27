@@ -1,0 +1,56 @@
+### This guide is meant to outline the procedure for installing the Nginx Ingress Controller and MetalLB load balancer on a running SUSE CaaS Platform installation on an on-premesis compute infrastructure. A follow on document covers installing SUSE Cloud Application Platform using these resources
+
+NOTE: This guide follows a methodology of populating a single variables file for the entire operation and then sourcing that file at the beginning of each major step
+
+ATTENTION: This guide assumes a SUSE CaaS Platform cluster is fully installed and running on an on-premesis compute infrastructure. May applications, including SUSE CAP, require additional resources such as a default Storage Class to be configured.
+
+### Create and populate this variables file on the administrative workstation from which the kubectl and helm commands will be run:
+
+----
+### START Variables for creating the TSL/SSL certificates and keys ###
+# Name of the root CA file. (.key will be appended to it during key creation)
+export ROOTCA_NAME=
+export ROOTCA_PASSPHRASE=
+export COUNTRY_NAME=
+# State or Province
+export STATE_NAME=
+# Locality or City
+export LOCALITY_NAME=
+# Major organization or company
+export ORGANIZATION_NAME=
+# OU or section
+export ORGANIZATIONAL_UNIT_NAME=
+# Server FQDN or service domain name, i.e. scf.caasp.local
+export COMMON_NAME=
+export EMAIL_ADDRESS=
+### END Variables for creating the TSL/SSL certificates and keys ###
+
+
+### START Variables for instantiating the MetalLB load balancer ###
+----
+
+
+
+### Create the TLS/SSL certificates and keys
+
+.Source the variables file (i.e. `source <filename>`), then run the following commands:
+
+----
+
+----
+
+
+
+### Deploy the MetalLB load balancer
+
+
+### Deploy the Nginx Ingress Controller
+
+
+### Test Nginx+MetalLB
+
+
+
+
+// vim: set syntax=asciidoc:
+
