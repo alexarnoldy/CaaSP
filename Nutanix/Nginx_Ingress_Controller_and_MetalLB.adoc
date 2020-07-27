@@ -10,7 +10,9 @@ ATTENTION: This guide assumes a SUSE CaaS Platform cluster is fully installed an
 ### START Variables for creating the TSL/SSL certificates and keys ###
 # Name of the root CA file. (.key will be appended to it during key creation)
 export ROOTCA_NAME=
+# Document the root CA cert passphrase here or somewhere else
 export ROOTCA_PASSPHRASE=
+## Document the values to used in creating the root CA certificate:
 export COUNTRY_NAME=
 # State or Province
 export STATE_NAME=
@@ -23,11 +25,14 @@ export ORGANIZATIONAL_UNIT_NAME=
 # Server FQDN or service domain name, i.e. scf.caasp.local
 export COMMON_NAME=
 export EMAIL_ADDRESS=
+# The FQDN of the CAP or other TLS service
+export SVC_FQDN=
 ### END Variables for creating the TSL/SSL certificates and keys ###
+
+### START Variables for instantiating the MetalLB load balancer ###
 # IP range is expressed as START-END, i.e. 10.0.0.10-10.0.0.19 or 10.0.0.10-10.0.0.10
 export IP_RANGE=
 
-### START Variables for instantiating the MetalLB load balancer ###
 ----
 
 
@@ -36,7 +41,14 @@ export IP_RANGE=
 
 .Source the variables file (i.e. `source <filename>`), then run the following commands
 
-
+----
+# Assign the passphrase
+openssl genrsa -des3 -out ${ROOTCA_NAME}.key 2048
+# Provide the root CA private key passphraase
+openssl req -x509 -new -nodes -key ${ROOTCA_NAME}.key  -subj "/C=${COUNTRY_NAME}/ST=${STATE_NAME}/L=${LOCALITY_NAME}/O=${ORGANIZATION_NAME}/OU=${ORGANIZATIONAL_UNIT_NAME}/CN=${COMMON_NAME}/emailAddress=${EMAIL_ADDRESS}" -sha256 -days 1825 -out ${ROOTCA_NAME}.pem
+# Generate the site private key
+openssl genrsa -out ${SVC_FQDN}.key 2048
+openssl req -new -key ${SVC_FQDN}.key -out ${SVC_FQDN}.csr
 
 
 ### Deploy the MetalLB load balancer
@@ -54,7 +66,7 @@ kubectl create secret generic -n metallb-system memberlist --from-literal=secret
 
 ----
 
-* Create the MetalLB configuration file
+* Create the MetalLB configuration file for layer 2 routing. See https://metallb.universe.tf/configuration/ for other routing options
 ----
 cat <<EOF> metallb-config.yaml
 apiVersion: v1
