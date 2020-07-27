@@ -45,14 +45,31 @@ export IP_RANGE=
 
 CAUTION: These instructions come from https://metallb.universe.tf/installation/. It is highly recommended that the user review this site thoroughly for any changes in the installation procedure before continuing. 
 
+* Install MetalLB
 ----
-## Install MetalLB
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/namespace.yaml
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/metallb.yaml
 # On first install only
 kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 
+----
 
+* Create the MetalLB configuration file
+----
+cat <<EOF> metallb-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:
+  config: |
+    address-pools:
+    - name: default
+      protocol: layer2
+      addresses:
+      - ${IP_RANGE}
+EOF
 ----
 
 ### Deploy the Nginx Ingress Controller
