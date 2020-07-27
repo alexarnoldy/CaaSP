@@ -48,7 +48,34 @@ openssl genrsa -des3 -out ${ROOTCA_NAME}.key 2048
 openssl req -x509 -new -nodes -key ${ROOTCA_NAME}.key  -subj "/C=${COUNTRY_NAME}/ST=${STATE_NAME}/L=${LOCALITY_NAME}/O=${ORGANIZATION_NAME}/OU=${ORGANIZATIONAL_UNIT_NAME}/CN=${COMMON_NAME}/emailAddress=${EMAIL_ADDRESS}" -sha256 -days 1825 -out ${ROOTCA_NAME}.pem
 # Generate the site private key
 openssl genrsa -out ${SVC_FQDN}.key 2048
-openssl req -new -key ${SVC_FQDN}.key -out ${SVC_FQDN}.csr
+openssl req -new -key ${SVC_FQDN}.key -subj "/C=${COUNTRY_NAME}/ST=${STATE_NAME}/L=${LOCALITY_NAME}/O=${ORGANIZATION_NAME}/OU=${ORGANIZATIONAL_UNIT_NAME}/CN=${COMMON_NAME}/emailAddress=${EMAIL_ADDRESS}" -out ${SVC_FQDN}.csr
+----
+* Create the .ext file
+----
+cat <<EOF> ${SVC_FQDN}.ext
+authorityKeyIdentifier=keyid,issuer
+
+basicConstraints=CA:FALSE
+
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+
+subjectAltName = @alt_names
+
+[alt_names]
+
+DNS.1 = ${SVC_FQDN}
+
+DNS.2 = *.${SVC_FQDN}
+
+DNS.3 = uaa.${SVC_FQDN}
+
+DNS.4 = *.uaa.${SVC_FQDN}
+EOF
+----
+* Create the x509 cert
+----
+openssl x509 -req -in ${SVC_FQDN}.csr -CA ${ROOTCA_NAME}.pem -CAkey ${ROOTCA_NAME}.key -CAcreateserial -out ${SVC_FQDN}.crt -days 1825 -sha256 -extfile ${SVC_FQDN}.ext
+----
 
 
 ### Deploy the MetalLB load balancer
