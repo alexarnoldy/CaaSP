@@ -2,8 +2,9 @@
 
 NOTE: This guide follows a methodology of populating a single variables file for the entire operation and then sourcing that file at the beginning of each major step
 
-ATTENTION: This guide assumes a SUSE CaaS Platform cluster is fully installed and running on an on-premesis compute infrastructure. May applications, including SUSE CAP, require additional resources such as a default Storage Class to be configured.
+ATTENTION: This guide assumes a SUSE CaaS Platform cluster is fully installed and running on an on-premesis compute infrastructure. A DNS service for the cluster nodesMay applications, including SUSE CAP, require additional resources such as a default Storage Class to be configured.
 
+NOTE: Specifically for supporting SUSE CAP, a wild-card DNS record that matches the SVC_FQDN below must be created before deploying CAP
 ### Create and populate this variables file on the administrative workstation from which the kubectl and helm commands will be run:
 
 ----
