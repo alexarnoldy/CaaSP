@@ -10,9 +10,10 @@ ATTENTION: This guide assumes a SUSE CaaS Platform cluster is fully installed an
 ### START Variables for creating the TSL/SSL certificates and keys ###
 # Name of the root CA file. (.key will be appended to it during key creation)
 export ROOTCA_NAME=
-# Document the root CA cert passphrase here or somewhere else
-export ROOTCA_PASSPHRASE=
+# (OPTIONAL) Document the root CA cert passphrase here or somewhere else
+ROOTCA_PASSPHRASE=
 ## Document the values to used in creating the root CA certificate:
+# Two letter country code
 export COUNTRY_NAME=
 # State or Province
 export STATE_NAME=
@@ -25,7 +26,7 @@ export ORGANIZATIONAL_UNIT_NAME=
 # Server FQDN or service domain name, i.e. scf.caasp.local
 export COMMON_NAME=
 export EMAIL_ADDRESS=
-# The FQDN of the CAP or other TLS service
+# The FQDN of the external URL that clients will connect to, can be the same a COMMON_NAME in some environments
 export SVC_FQDN=
 ### END Variables for creating the TSL/SSL certificates and keys ###
 
@@ -44,7 +45,7 @@ export IP_RANGE=
 ----
 # Assign the passphrase
 openssl genrsa -des3 -out ${ROOTCA_NAME}.key 2048
-# Provide the root CA private key passphraase
+# Provide the root CA private key passphrase when prompted
 openssl req -x509 -new -nodes -key ${ROOTCA_NAME}.key  -subj "/C=${COUNTRY_NAME}/ST=${STATE_NAME}/L=${LOCALITY_NAME}/O=${ORGANIZATION_NAME}/OU=${ORGANIZATIONAL_UNIT_NAME}/CN=${COMMON_NAME}/emailAddress=${EMAIL_ADDRESS}" -sha256 -days 1825 -out ${ROOTCA_NAME}.pem
 # Generate the site private key
 openssl genrsa -out ${SVC_FQDN}.key 2048
@@ -74,7 +75,15 @@ EOF
 ----
 * Create the x509 cert
 ----
+# Provide the root CA private key passphrase when prompted
 openssl x509 -req -in ${SVC_FQDN}.csr -CA ${ROOTCA_NAME}.pem -CAkey ${ROOTCA_NAME}.key -CAcreateserial -out ${SVC_FQDN}.crt -days 1825 -sha256 -extfile ${SVC_FQDN}.ext
+----
+* (OPTIONAL) Verify the cert public key, site private key, and certificate signing request match
+** The resulting md5 hashes should all be the same
+----
+openssl x509 -noout -modulus -in ${SVC_FQDN}.crt | openssl md5
+openssl rsa -noout -modulus -in ${SVC_FQDN}.key | openssl md5
+openssl req -noout -modulus -in ${SVC_FQDN}.csr | openssl md5
 ----
 
 
