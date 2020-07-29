@@ -128,6 +128,7 @@ data:
 EOF
 ----
 ** Apply the MetalLB configuration ConfigMap: `kubectl apply -f metallb-config.yaml`
+*** Verify the configuration was applied correctly (especially review the IP address pool): `kubectl get configmap config -n metallb-system -o yaml`
 *** Verify the MetalLB load balancer is running: `kubectl get all -n metallb-system`
 
 ### Deploy the Nginx Ingress Controller
