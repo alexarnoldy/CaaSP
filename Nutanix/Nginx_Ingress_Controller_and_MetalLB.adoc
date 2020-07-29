@@ -43,13 +43,20 @@ export IP_RANGE=
 
 .Source the variables file (i.e. `source <filename>`), then run the following commands
 
+* Assign the passphrase
 ----
-# Assign the passphrase
 openssl genrsa -des3 -out ${ROOTCA_NAME}.key 2048
-# Provide the root CA private key passphrase when prompted
+----
+* Provide the root CA private key passphrase when prompted
+----
 openssl req -x509 -new -nodes -key ${ROOTCA_NAME}.key  -subj "/C=${COUNTRY_NAME}/ST=${STATE_NAME}/L=${LOCALITY_NAME}/O=${ORGANIZATION_NAME}/OU=${ORGANIZATIONAL_UNIT_NAME}/CN=${COMMON_NAME}/emailAddress=${EMAIL_ADDRESS}" -sha256 -days 1825 -out ${ROOTCA_NAME}.pem
-# Generate the site private key
+----
+* Generate the site private key
+----
 openssl genrsa -out ${SVC_FQDN}.key 2048
+----
+* Generate the site certificate signing request
+----
 openssl req -new -key ${SVC_FQDN}.key -subj "/C=${COUNTRY_NAME}/ST=${STATE_NAME}/L=${LOCALITY_NAME}/O=${ORGANIZATION_NAME}/OU=${ORGANIZATIONAL_UNIT_NAME}/CN=${COMMON_NAME}/emailAddress=${EMAIL_ADDRESS}" -out ${SVC_FQDN}.csr
 ----
 * Create the .ext file
@@ -75,11 +82,11 @@ DNS.4 = *.uaa.${SVC_FQDN}
 EOF
 ----
 * Create the x509 cert
+** Provide the root CA private key passphrase when prompted
 ----
-# Provide the root CA private key passphrase when prompted
 openssl x509 -req -in ${SVC_FQDN}.csr -CA ${ROOTCA_NAME}.pem -CAkey ${ROOTCA_NAME}.key -CAcreateserial -out ${SVC_FQDN}.crt -days 1825 -sha256 -extfile ${SVC_FQDN}.ext
 ----
-* (OPTIONAL) Verify the cert public key, site private key, and certificate signing request match
+* (OPTIONAL) Verify the cert public key, site private key, and certificate signing request files were created correctly and all match
 ** The resulting md5 hashes should all be the same
 ----
 openssl x509 -noout -modulus -in ${SVC_FQDN}.crt | openssl md5
@@ -94,13 +101,13 @@ openssl req -noout -modulus -in ${SVC_FQDN}.csr | openssl md5
 
 CAUTION: These instructions come from https://metallb.universe.tf/installation/. It is highly recommended that the user review this site thoroughly for any changes in the installation procedure before continuing. 
 
+* Verify the correct Kubernetes cluster is targeted: `kubectl config get-clusters` 
 * Install MetalLB
 ----
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/namespace.yaml
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manifests/metallb.yaml
 # On first install only
 kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
-
 ----
 
 * Create the MetalLB configuration file for layer 2 routing. See https://metallb.universe.tf/configuration/ for other routing options
@@ -120,9 +127,40 @@ data:
       - ${IP_RANGE}
 EOF
 ----
+** Apply the MetalLB configuration ConfigMap: `kubectl apply -f metallb-config.yaml`
+*** Verify the MetalLB load balancer is running: `kubectl get all -n metallb-system`
 
 ### Deploy the Nginx Ingress Controller
 
+.Source the variables file (i.e. `source <filename>`), then run the following commands
+
+* Create the nginx-ingress namespace: `kubectl create namespace nginx-ingress`
+* Prepare the Base64 encoded files for the TLS secret
+----
+B64_CRT=`bash -c "cat ${SVC_FQDN}.crt | base64 | awk '{print}' ORS='' && echo"`
+B64_KEY=`bash -c "cat ${SVC_FQDN}.key | base64 | awk '{print}' ORS='' && echo"`
+----
+
+* Create the Kubernetes secret that contains the site certificate file and private key
+----
+cat <<EOF> ingress-tls-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ingress-tls
+  namespace: nginx-ingress
+data:
+  tls.crt: ${B64_CRT}
+  tls.key: ${B64_KEY}
+type: kubernetes.io/tls
+EOF
+----
+** Apply the Kubernetes secret: `kubectl apply -f ingress-tls-secret.yaml`
+
+* Using Helm version 3, create the Nginx Ingress Controller
+----
+helm install  nginx-ingress  suse/nginx-ingress --namespace nginx-ingress --set rbac.create=true --set controller.service.externalTrafficPolicy=Local --set controller.publishService.enabled=true --set "tcp.20000=kubecf/tcp-router-tcp-router-public:20000" --set "tcp.20001=kubecf/tcp-router-tcp-router-public:20001" --set "tcp.20002=kubecf/tcp-router-tcp-router-public:20002" --set "tcp.20003=kubecf/tcp-router-tcp-router-public:20003" --set "tcp.20004=kubecf/tcp-router-tcp-router-public:20004" --set "tcp.20005=kubecf/tcp-router-tcp-router-public:20005" --set "tcp.20006=kubecf/tcp-router-tcp-router-public:20006" --set "tcp.20007=kubecf/tcp-router-tcp-router-public:20007" --set "tcp.20008=kubecf/tcp-router-tcp-router-public:20008" --set "tcp.2222=kubecf/diego-ssh-ssh-proxy-public:2222"
+----
 
 ### Test Nginx+MetalLB
 
