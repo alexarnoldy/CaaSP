@@ -162,7 +162,62 @@ EOF
 helm install  nginx-ingress  suse/nginx-ingress --namespace nginx-ingress --set rbac.create=true --set controller.service.externalTrafficPolicy=Local --set controller.publishService.enabled=true --set "tcp.20000=kubecf/tcp-router-tcp-router-public:20000" --set "tcp.20001=kubecf/tcp-router-tcp-router-public:20001" --set "tcp.20002=kubecf/tcp-router-tcp-router-public:20002" --set "tcp.20003=kubecf/tcp-router-tcp-router-public:20003" --set "tcp.20004=kubecf/tcp-router-tcp-router-public:20004" --set "tcp.20005=kubecf/tcp-router-tcp-router-public:20005" --set "tcp.20006=kubecf/tcp-router-tcp-router-public:20006" --set "tcp.20007=kubecf/tcp-router-tcp-router-public:20007" --set "tcp.20008=kubecf/tcp-router-tcp-router-public:20008" --set "tcp.2222=kubecf/diego-ssh-ssh-proxy-public:2222"
 ----
 
+* Verify the Nginx ingress controller is communicating with the MetalLB load balancer: `kubectl get svc -n nginx-ingress`
+** The ingress controller should have the first IP allocated to MetalLB and show all of the port mappings configured through Helm
+
 ### Test Nginx+MetalLB
+
+NOTE: This test will only work if the MetalLB load balancer has at least one configured IP address that is not allocated to a cluster service
+
+.Source the variables file (i.e. `source <filename>`), then run the following commands
+
+* Create the file containing an Nginx webserver deployment and LoadBalancer service
+----
+cat <<EOF> nginx-metallb-test.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1
+        ports:
+        - name: http
+          containerPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: nginx
+  type: LoadBalancer
+EOF
+----
+* Create the deployment and service: `kubectl apply -f nginx-metallb-test.yaml`
+* Verify the deployment is running: `kubectl get deployments,svc`
+** Take note of the EXTERNAL-IP allocated to "service/nginx" 
+* (OPTIONAL) Configure local DNS resolution for the IP address allocated to "service/nginx"
+* Set this variable to the DNS name or IP address: `URL=""`
+* Verify external connectivity to the nginx webserver: `curl http://${URL}:8080`
+* When ready, delete the deployment and service: `kubectl delete -f nginx-metallb-test.yaml`
+* If needed, remove the local DNS entry for the test deployment
 
 
 
