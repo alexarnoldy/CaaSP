@@ -1,10 +1,11 @@
-### This guide is meant to outline the procedure for installing the Nginx Ingress Controller and MetalLB load balancer on a running SUSE CaaS Platform installation on an on-premesis compute infrastructure. A follow on document covers installing SUSE Cloud Application Platform using these resources
+### This guide is meant to outline the procedure for installing the Nginx Ingress Controller and MetalLB load balancer on a running SUSE CaaS Platform installation on an on-premesis compute infrastructure. A follow on document specfically covers preparing this cluster for installing SUSE Cloud Application Platform using these resources
 
 NOTE: This guide follows a methodology of populating a single variables file for the entire operation and then sourcing that file at the beginning of each major step
 
 ATTENTION: This guide assumes a SUSE CaaS Platform cluster is fully installed and running on an on-premesis compute infrastructure. A DNS service for the cluster nodesMay applications, including SUSE CAP, require additional resources such as a default Storage Class to be configured.
 
-NOTE: Specifically for supporting SUSE CAP, a wild-card DNS record that matches the SVC_FQDN below must be created as part of the CAP deployment process. 
+NOTE: Specifically for supporting SUSE CAP, a wild-card DNS record that matches the SVC_FQDN below must be created as part of the CAP deployment process. This procedure enables associating the SVC_FQDN with the first IP address in the load balancers range of reserved IP addresses (IP_RANGE_START)
+
 ### Create and populate this variables file on the administrative workstation from which the kubectl and helm commands will be run:
 
 ----
@@ -142,8 +143,8 @@ EOF
 * Create the nginx-ingress namespace: `kubectl create namespace nginx-ingress`
 * Prepare the Base64 encoded files for the TLS secret
 ----
-B64_CRT=`bash -c "cat ${SVC_FQDN}.crt | base64 | awk '{print}' ORS='' && echo"`
-B64_KEY=`bash -c "cat ${SVC_FQDN}.key | base64 | awk '{print}' ORS='' && echo"`
+B64_CRT=$(bash -c "cat ${SVC_FQDN}.crt | base64 | awk '{print}' ORS='' && echo")
+B64_KEY=$(bash -c "cat ${SVC_FQDN}.key | base64 | awk '{print}' ORS='' && echo")
 ----
 
 * Create the Kubernetes secret that contains the site certificate file and private key
@@ -164,11 +165,12 @@ EOF
 
 * Using Helm version 3, create the Nginx Ingress Controller
 ----
-helm install  nginx-ingress  suse/nginx-ingress --namespace nginx-ingress --set rbac.create=true --set controller.service.externalTrafficPolicy=Local --set controller.publishService.enabled=true --set "tcp.20000=kubecf/tcp-router-tcp-router-public:20000" --set "tcp.20001=kubecf/tcp-router-tcp-router-public:20001" --set "tcp.20002=kubecf/tcp-router-tcp-router-public:20002" --set "tcp.20003=kubecf/tcp-router-tcp-router-public:20003" --set "tcp.20004=kubecf/tcp-router-tcp-router-public:20004" --set "tcp.20005=kubecf/tcp-router-tcp-router-public:20005" --set "tcp.20006=kubecf/tcp-router-tcp-router-public:20006" --set "tcp.20007=kubecf/tcp-router-tcp-router-public:20007" --set "tcp.20008=kubecf/tcp-router-tcp-router-public:20008" --set "tcp.2222=kubecf/diego-ssh-ssh-proxy-public:2222"
+helm install  nginx-ingress  suse/nginx-ingress --namespace nginx-ingress --set controller.service.loadBalancerIP="${IP_RANGE_START}" --set rbac.create=true --set controller.service.externalTrafficPolicy=Local --set controller.publishService.enabled=true --set "tcp.20000=kubecf/tcp-router-tcp-router-public:20000" --set "tcp.20001=kubecf/tcp-router-tcp-router-public:20001" --set "tcp.20002=kubecf/tcp-router-tcp-router-public:20002" --set "tcp.20003=kubecf/tcp-router-tcp-router-public:20003" --set "tcp.20004=kubecf/tcp-router-tcp-router-public:20004" --set "tcp.20005=kubecf/tcp-router-tcp-router-public:20005" --set "tcp.20006=kubecf/tcp-router-tcp-router-public:20006" --set "tcp.20007=kubecf/tcp-router-tcp-router-public:20007" --set "tcp.20008=kubecf/tcp-router-tcp-router-public:20008" --set "tcp.2222=kubecf/diego-ssh-ssh-proxy-public:2222"
 ----
 
 * Verify the Nginx ingress controller is communicating with the MetalLB load balancer: `kubectl get svc -n nginx-ingress`
 ** The ingress controller should have the first IP allocated to MetalLB and show all of the port mappings configured through Helm
+*** If the ingress controller shows an EXTERNAL-IP status of <pending> for more than a few seconds, the ingress controller has not gotten the first IP address in the range. Check your variable settings and use `kubectl get svc -A` to see if the first IP address has already been taken. The ingress controller can use any valid IP address, the first IP is used here only for convenience.
 
 ### Test Nginx+MetalLB
 
@@ -213,17 +215,15 @@ spec:
   selector:
     app: nginx
   type: LoadBalancer
-  loadBalancerIP: ${IP_RANGE_START}
+  loadBalancerIP: ${IP_RANGE_END}
 EOF
 ----
 * Create the deployment and service: `kubectl apply -f nginx-metallb-test.yaml`
 * Verify the deployment is running: `kubectl get deployments,svc`
 ** Take note of the EXTERNAL-IP allocated to "service/nginx" 
 * (OPTIONAL) Configure local DNS resolution for the IP address allocated to "service/nginx"
-* Set this variable to the DNS name or IP address: `URL=""`
-* Verify external connectivity to the nginx webserver: `curl http://${URL}:8080`
-
-NOTE: For a CAP deployment, this test service can be used to hold the first IP address in the range assigned to MetalLB. This would allow for creating a wildcard DNS entry for CAP and this IP address. Then, simply delete the Nginx test deployment and service just before starting the CAP deployment. Be sure to use the spec.loadbalancerIP parameter to reserve the same load balancer IP address for CAP.
+** Then, verify external connectivity to the nginx webserver (replace ${URL} with the actual URL): `curl http://${URL}:8080`
+* Otherwise, verify external connectivity to the nginx webserver via the IP address: `curl http://${IP_RANGE_END}:8080`
 
 * When ready, delete the deployment and service: `kubectl delete -f nginx-metallb-test.yaml`
 * If needed, remove the local DNS entry for the test deployment

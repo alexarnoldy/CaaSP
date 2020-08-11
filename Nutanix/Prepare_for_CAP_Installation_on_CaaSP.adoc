@@ -1,0 +1,22 @@
+### This guide is meant to prepare to install SUSE Cloud Application Platform an on-site CaaSP cluster. This guide assumes there is an existing application load balancer and ingress controller configured. A previous document (Nginx_Ingress_Controller_and_MetalLB.adoc) provides one example of how to configure these resources.
+
+NOTE: After meeting the guidelines stated above and completing this procudure, continue on with a normal installation of SUSE Cloud Application Platform using the standard installation documents
+
+
+### Create a wildcard DNS record for the external URL that clients will use to connect to CAP applications
+
+NOTE: The wildcard DNS record will resolve to the same IP address as the base FQDN for any domain extension. For example, foo.scf.example.local would resolve to the same IP address as bar.scf.example.local.
+
+CAUTION: Some implementations of BIND will only allow wildcard records to be added directly to a domain file (often user /var/lib/named/ or /var/lib/named/master). The record would look like `*.scf``````````````````````````IN CNAME``````````````````````````scf.example.local.` The named service would need to be restarted after any domain files are edited.
+
+* The primary DNS record (i.e. scf.example.local) should point to the IP address the Kuberentes ingress controller has been assigned. 
+* To find the IP address assigned to the ingress controller: `kubectl get svc -A`
+    
+** If the Nginx Ingress Controller is in use, the correct EXTERNAL-IP will be found on the "nginx-ingress-controller`````````````````````````` LoadBalancer"
+
+### Create the kubecf-config-values.yaml file
+
+* Set this variable to the fully qualified domain name of the 
+
+
+// vim: set syntax=asciidoc:
