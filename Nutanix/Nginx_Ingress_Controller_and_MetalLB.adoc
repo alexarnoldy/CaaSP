@@ -4,11 +4,11 @@ NOTE: This guide follows a methodology of populating a single variables file for
 
 ATTENTION: This guide assumes a SUSE CaaS Platform cluster is fully installed and running on an on-premesis compute infrastructure. A DNS service for the cluster nodesMay applications, including SUSE CAP, require additional resources such as a default Storage Class to be configured.
 
-NOTE: Specifically for supporting SUSE CAP, a wild-card DNS record that matches the SVC_FQDN below must be created before deploying CAP
+NOTE: Specifically for supporting SUSE CAP, a wild-card DNS record that matches the SVC_FQDN below must be created as part of the CAP deployment process. 
 ### Create and populate this variables file on the administrative workstation from which the kubectl and helm commands will be run:
 
 ----
-### START Variables for creating the TSL/SSL certificates and keys ###
+#### START Variables for creating the TSL/SSL certificates and keys ###
 # Name of the root CA file. (.key will be appended to it during key creation)
 export ROOTCA_NAME=
 # (OPTIONAL) Document the root CA cert passphrase here or somewhere else
@@ -32,8 +32,12 @@ export SVC_FQDN=
 ### END Variables for creating the TSL/SSL certificates and keys ###
 
 ### START Variables for instantiating the MetalLB load balancer ###
-# IP range is expressed as START-END, i.e. 10.0.0.10-10.0.0.19 or 10.0.0.10-10.0.0.10
-export IP_RANGE=
+# For this configuration IP range will be configured as START-END, 
+# i.e. 10.0.0.10-10.0.0.19 or 10.0.0.10-10.0.0.10. It can also be expressed as IP/CIDR, 
+# though the metallb-config.yaml and nginx-metallb-test.yaml files would have be adjusted 
+# slightly from these instructions
+export IP_RANGE_START=
+export IP_RANGE_END=
 
 ----
 
@@ -124,7 +128,7 @@ data:
     - name: default
       protocol: layer2
       addresses:
-      - ${IP_RANGE}
+      - ${IP_RANGE_START}-${IP_RANGE_END}
 EOF
 ----
 ** Apply the MetalLB configuration ConfigMap: `kubectl apply -f metallb-config.yaml`
@@ -209,6 +213,7 @@ spec:
   selector:
     app: nginx
   type: LoadBalancer
+  loadBalancerIP: ${IP_RANGE_START}
 EOF
 ----
 * Create the deployment and service: `kubectl apply -f nginx-metallb-test.yaml`
@@ -217,6 +222,9 @@ EOF
 * (OPTIONAL) Configure local DNS resolution for the IP address allocated to "service/nginx"
 * Set this variable to the DNS name or IP address: `URL=""`
 * Verify external connectivity to the nginx webserver: `curl http://${URL}:8080`
+
+NOTE: For a CAP deployment, this test service can be used to hold the first IP address in the range assigned to MetalLB. This would allow for creating a wildcard DNS entry for CAP and this IP address. Then, simply delete the Nginx test deployment and service just before starting the CAP deployment. Be sure to use the spec.loadbalancerIP parameter to reserve the same load balancer IP address for CAP.
+
 * When ready, delete the deployment and service: `kubectl delete -f nginx-metallb-test.yaml`
 * If needed, remove the local DNS entry for the test deployment
 
