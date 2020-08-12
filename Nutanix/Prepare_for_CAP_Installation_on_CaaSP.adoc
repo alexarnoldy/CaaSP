@@ -21,7 +21,11 @@ export SITE_KEY_FILE_NAME=
 
 NOTE: The wildcard DNS record will resolve to the same IP address as the base FQDN for any domain extension. For example, foo.scf.caasp.local and bar.scf.caasp.local would resolve to the same IP address as scf.caasp.local.
 
-TIP: Some implementations of BIND will only allow wildcard records to be added directly to a domain file (often under /var/lib/named/ or /var/lib/named/master). The wildcard record would look like `*.scf``        ``IN CNAME       scf.caasp.local.` `*.scf``````````````````````````IN CNAME``````````````````````````scf.caasp.local.` The named service would need to be restarted after any domain files are edited.
+TIP: Some implementations of BIND will only allow wildcard records to be added directly to a domain file (often under /var/lib/named/ or /var/lib/named/master). The wildcard record would look like 
+----
+*.scf        IN CNAME       scf.caasp.local.
+----
+ `*.scf``````````````````````````IN CNAME``````````````````````````scf.caasp.local.` The named service would need to be restarted after any domain files are edited.
 
 * The primary DNS record (i.e. scf.caasp.local) should point to the IP address the Kuberentes ingress controller has been assigned. 
 * To find the IP address assigned to the ingress controller: `kubectl get svc -A`
