@@ -29,6 +29,8 @@ TIP: Some implementations of BIND will only allow wildcard records to be added d
 ** If the Nginx Ingress Controller is in use, the correct EXTERNAL-IP will be found on the "nginx-ingress-controller`````````````````````````` LoadBalancer"
 
 * Verify the DNS record returns the IP address assigned to the ingress controller: 
+** Source the variables file (i.e. `source cap-pre-installation.vars`), then run the following commands
+
 ----
 getent hosts uaa.${SYSTEM_DOMAIN}
 getent hosts suse.${SYSTEM_DOMAIN}
@@ -38,7 +40,7 @@ getent hosts suse.${SYSTEM_DOMAIN}
 
 .Source the variables file (i.e. `source cap-pre-installation.vars`), then run the following commands
 
-* This is the base deployment configuration file
+* Create the base deployment configuration file
 ----
 cat <<EOF> kubecf-config-values.yaml
 ### SUSE Cloud Application Platform deployment configuration file
@@ -108,7 +110,7 @@ followed by the rest of the private key file
 
 ### Continue with the standard SUSE Cloud Application Platform installation in accordance with the published deployment documentation
 
-* When deploying SUSE CAP with helm, ensure that the correct configuration values file is referenced, i.e. "helm install kubecf suse/kubecf --namespace kubecf --values *_kubecf-config-values.yaml_* --version x.y.z"
+* When deploying SUSE CAP with helm, ensure that the correct configuration values file is referenced, i.e. "helm install kubecf suse/kubecf --namespace kubecf --values *_kubecf-config-values.yaml_* --version ..."
 
 
 
