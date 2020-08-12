@@ -6,10 +6,10 @@ ATTENTION: This guide assumes a SUSE CaaS Platform cluster is fully installed an
 
 NOTE: Specifically for supporting SUSE CAP, a wild-card DNS record that matches the SVC_FQDN below must be created as part of the CAP deployment process. This procedure enables associating the SVC_FQDN with the first IP address in the load balancers range of reserved IP addresses (IP_RANGE_START)
 
-### Create and populate this variables file on the administrative workstation from which the kubectl and helm commands will be run:
+### Create and populate a variables file (i.e. ngnix-metallb.vars) on the administrative workstation from which the kubectl and helm commands will be run:
 
 ----
-#### START Variables for creating the TSL/SSL certificates and keys ###
+### START Variables for creating the TSL/SSL certificates and keys ###
 # Name of the root CA file. (.key will be appended to it during key creation)
 export ROOTCA_NAME=
 # (OPTIONAL) Document the root CA cert passphrase here or somewhere else
@@ -46,7 +46,7 @@ export IP_RANGE_END=
 
 ### Create the TLS/SSL certificates and keys
 
-.Source the variables file (i.e. `source <filename>`), then run the following commands
+.Source the variables file (i.e. `source ngnix-metallb.vars`), then run the following commands
 
 * Assign the passphrase
 ----
@@ -102,7 +102,7 @@ openssl req -noout -modulus -in ${SVC_FQDN}.csr | openssl md5
 
 ### Deploy the MetalLB load balancer
 
-.Source the variables file (i.e. `source <filename>`), then run the following commands
+.Source the variables file (i.e. `source ngnix-metallb.vars`), then run the following commands
 
 CAUTION: These instructions come from https://metallb.universe.tf/installation/. It is highly recommended that the user review this site thoroughly for any changes in the installation procedure before continuing. 
 
@@ -138,7 +138,7 @@ EOF
 
 ### Deploy the Nginx Ingress Controller
 
-.Source the variables file (i.e. `source <filename>`), then run the following commands
+.Source the variables file (i.e. `source ngnix-metallb.vars`), then run the following commands
 
 * Create the nginx-ingress namespace: `kubectl create namespace nginx-ingress`
 * Prepare the Base64 encoded files for the TLS secret
@@ -176,7 +176,7 @@ helm install  nginx-ingress  suse/nginx-ingress --namespace nginx-ingress --set 
 
 NOTE: This test will only work if the MetalLB load balancer has at least one configured IP address that is not allocated to a cluster service
 
-.Source the variables file (i.e. `source <filename>`), then run the following commands
+.Source the variables file (i.e. `source ngnix-metallb.vars`), then run the following commands
 
 * Create the file containing an Nginx webserver deployment and LoadBalancer service
 ----

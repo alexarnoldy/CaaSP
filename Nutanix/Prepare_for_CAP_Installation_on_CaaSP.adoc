@@ -2,21 +2,114 @@
 
 NOTE: After meeting the guidelines stated above and completing this procudure, continue on with a normal installation of SUSE Cloud Application Platform using the standard installation documents
 
+### Create and populate a variables file (i.e. cap-pre-installation.vars) on the administrative workstation from which the kubectl and helm commands will be run:
+
+----
+### START Variables for kubecf-config-values.yaml file ###
+# SYSTEM_DOMAIN should be the fully qualified URL used to reach the CAP services, i.e. kubecf.caasp.local
+export SYSTEM_DOMAIN=
+export CF_ADMIN_PASSWORD=
+export UAA_ADMIN_CLIENT_SECRET=
+# SITE_CRT_FILE_NAME is the entire name of the site certificate file, i.e. scf.caasp.local.crt
+export SITE_CRT_FILE_NAME=
+# SITE_KEY_FILE_NAME is the entire name of the site private key file, i.e. scf.caasp.local.key
+export SITE_KEY_FILE_NAME=
+#### END Variables for kubecf-config-values.yaml file ###
+----
 
 ### Create a wildcard DNS record for the external URL that clients will use to connect to CAP applications
 
-NOTE: The wildcard DNS record will resolve to the same IP address as the base FQDN for any domain extension. For example, foo.scf.example.local would resolve to the same IP address as bar.scf.example.local.
+NOTE: The wildcard DNS record will resolve to the same IP address as the base FQDN for any domain extension. For example, foo.scf.caasp.local and bar.scf.caasp.local would resolve to the same IP address as scf.caasp.local.
 
-CAUTION: Some implementations of BIND will only allow wildcard records to be added directly to a domain file (often user /var/lib/named/ or /var/lib/named/master). The record would look like `*.scf``````````````````````````IN CNAME``````````````````````````scf.example.local.` The named service would need to be restarted after any domain files are edited.
+TIP: Some implementations of BIND will only allow wildcard records to be added directly to a domain file (often user /var/lib/named/ or /var/lib/named/master). The record would look like `*.scf``````````````````````````IN CNAME``````````````````````````scf.caasp.local.` The named service would need to be restarted after any domain files are edited.
 
-* The primary DNS record (i.e. scf.example.local) should point to the IP address the Kuberentes ingress controller has been assigned. 
+* The primary DNS record (i.e. scf.caasp.local) should point to the IP address the Kuberentes ingress controller has been assigned. 
 * To find the IP address assigned to the ingress controller: `kubectl get svc -A`
     
 ** If the Nginx Ingress Controller is in use, the correct EXTERNAL-IP will be found on the "nginx-ingress-controller`````````````````````````` LoadBalancer"
 
+* Verify the DNS record returns the IP address assigned to the ingress controller: 
+----
+getent hosts uaa.${SYSTEM_DOMAIN}
+getent hosts suse.${SYSTEM_DOMAIN}
+----
+
 ### Create the kubecf-config-values.yaml file
 
-* Set this variable to the fully qualified domain name of the 
+.Source the variables file (i.e. `source cap-pre-installation.vars`), then run the following commands
+
+* This is the base deployment configuration file
+----
+cat <<EOF> kubecf-config-values.yaml
+### SUSE Cloud Application Platform deployment configuration file
+### kubecf-config-values.yaml
+
+system_domain: ${SYSTEM_DOMAIN}
+
+credentials:
+  cf_admin_password: ${CF_ADMIN_PASSWORD}
+  uaa_admin_client_secret: ${UAA_ADMIN_CLIENT_SECRET}
+
+features:
+  ingress:
+    enabled: true
+    tls:
+      crt: |
+      key: |
+#
+settings:
+  router:
+    tls:
+      crt: |
+      key: |
+#
+EOF
+----
+
+### Create duplicate site certifcate and private key files that are formatted to be inserted into the kubecf-config-values.yaml file
+
+.Source the variables file (i.e. `source cap-pre-installation.vars`), then run the following commands
+
+----
+sed 's/^/        /' ${SITE_CRT_FILE_NAME} > ${SITE_CRT_FILE_NAME}.indented
+----
+
+----
+sed 's/^/        /' ${SITE_KEY_FILE_NAME} > ${SITE_KEY_FILE_NAME}.indented
+----
+
+### Insert the indented certificate and private key files into the kubecf-config-values.yaml file
+
+.Source the variables file (i.e. `source cap-pre-installation.vars`), then run the following commands
+
+----
+sed -i "/crt/ r ${SITE_CRT_FILE_NAME}.indented" kubecf-config-values.yaml
+
+sed -i "/key/ r ${SITE_KEY_FILE_NAME}.indented" kubecf-config-values.yaml
+----
+
+* Review the kubecf-config-values.yaml file to ensure both files were inserted in the correct places
+** The file should have two places that exactly match:
+----
+      crt: |
+        -----BEGIN CERTIFICATE-----
+----
+followed by the rest of the certificate file, 
+and two places that exactly match:
+----
+      key: |
+        -----BEGIN RSA PRIVATE KEY-----
+----
+followed by the rest of the private key file
+
+### Verify that there is a default storage class configured
+
+* There should be one line that include the string "(default)": `kubectl get sc`
+
+### Continue with the standard SUSE Cloud Application Platform installation in accordance with the published deployment documentation
+
+* When deploying SUSE CAP with helm, ensure that the correct configuration values file is referenced, i.e. "helm install kubecf suse/kubecf --namespace kubecf --values *_kubecf-config-values.yaml_* --version x.y.z"
+
 
 
 // vim: set syntax=asciidoc:
