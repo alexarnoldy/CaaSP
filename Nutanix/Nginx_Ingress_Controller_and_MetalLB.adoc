@@ -118,7 +118,7 @@ kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.3/manife
 kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 ----
 
-* Create the MetalLB configuration file for layer 2 routing. See https://metallb.universe.tf/configuration/ for other routing options
+* Create the MetalLB configuration file for layer 2 routing. See https://metallb.universe.tf/configuration/ for other routing options and https://raw.githubusercontent.com/google/metallb/v0.9.3/manifests/example-config.yaml for lots of configuration options
 ----
 cat <<EOF> metallb-config.yaml
 apiVersion: v1
@@ -135,6 +135,7 @@ data:
       - ${DEFAULT_IP_RANGE_START}-${DEFAULT_IP_RANGE_END}
     - name: suse-cloud-application-platform
       protocol: layer2
+      auto-assign: false
       addresses:
       - ${CAP_IP_RANGE_START}-${CAP_IP_RANGE_END}
 EOF
