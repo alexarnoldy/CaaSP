@@ -19,17 +19,16 @@ esac
 ## Moved to the for loop for a per-node effect
 #CREATE_NEW_BRIDGES=()
 
-export NEW_BRIDGE=$(head -1 ./.free_nets)
+## To create a specific network, echo that number and double-redirect into ./.free_nets before running this script
+cp -np ./free_nets .bak/.free_nets.`date +"%d.%b.%Y.%H.%M"`
+cp -np ./.configured_nets .bak/.configured_nets.`date +"%d.%b.%Y.%H.%M"`
+export NEW_BRIDGE=$(tail -1 ./.free_nets)
 
 ## Need to communicate that ${NEW_BRIDGE} is the network that has been created for this iteration
 
 ## Move the new bridge from .free_nets to .configured_nets
-bash -c "echo ${NEW_BRIDGE} >> ./.configured_nets" &&\
-        bash -c "grep -v ${NEW_BRIDGE} ./.free_nets > ./.free_nets.tmp" &&\
-        sort ./.free_nets.tmp | uniq > ./.free_nets &&\
-        rm ./.free_nets.tmp &&\
-        sort ./.configured_nets | uniq > ./.configured_nets.tmp &&\
-        mv ./.configured_nets.tmp ./.configured_nets
+bash -c "echo ${NEW_BRIDGE} >> ./.configured_nets &&\
+        sed -i "/${NEW_BRIDGE}/d" ./.free_nets"
 
 ## Iterate over the ./.configured_nets file to review what networks should be configured on the infrastructure hosts
 for CONFIGURED_BRIDGES in $(cat ./.configured_nets)
@@ -59,5 +58,6 @@ done
 #echo ${CREATE_NEW_BRIDGES[@]}
 
 ## Need to run the same procedure backwards to remove bridges that are configured but not listed in ./.configured_nets
+
 
 
