@@ -2,7 +2,7 @@
 
 NOTE: After meeting the guidelines stated above and completing this procudure, continue on with a normal installation of SUSE Cloud Application Platform using the standard installation documents
 
-### Create and populate a variables file (i.e. cap-pre-installation.vars) on the administrative workstation from which the SUSE CAP installation will be run:
+### Create and populate a variables file (i.e. cap-pre-installation.vars) on the administrative workstation from which the SUSE CAP installation will be run
 
 ----
 ### START Variables for kubecf-config-values.yaml file ###

@@ -8,6 +8,8 @@ NOTE: Specifically for supporting SUSE CAP, a wild-card DNS record that matches 
 
 ### Create and populate a variables file (i.e. ngnix-metallb.vars) on the administrative workstation from which the kubectl and helm commands will be run:
 
+NOTE: The following steps will create a local Certificate Authority and self-signed TLS certificate. They are not applicable for using a certificate from a public CA or exisitng private CA.
+
 TIP: These variables can be populated and used to generate the root CA private key and x509 cerficate, then updated to create the site (application) private key and certificate; or the same information can be used for both (only for testing and sandbox environments).
 
 ----
@@ -53,6 +55,7 @@ export CAP_IP_RANGE_END=
 ### Create the TLS certificates and keys
 
 .Source the variables file (i.e. `source ngnix-metallb.vars`), then run the following commands
+
 
 * Generate the 2048 bit root CA private key using des3 encryption
 ** Set the root CA private key passphrase when prompted
