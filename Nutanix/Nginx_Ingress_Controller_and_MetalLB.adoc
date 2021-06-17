@@ -1,18 +1,21 @@
 ### This guide is meant to outline the procedure for installing the Nginx Ingress Controller and MetalLB load balancer on a running SUSE CaaS Platform installation on an on-premesis compute infrastructure. A follow on document specfically covers preparing this cluster for installing SUSE Cloud Application Platform using these resources
 
-NOTE: This guide follows a methodology of populating a single variables file for the entire operation and then sourcing that file at the beginning of each major step
+NOTE: This guide follows a methodology of populating a single variables file for the entire operation and then sourcing that file at the beginning of each major step.
 
-ATTENTION: This guide assumes a SUSE CaaS Platform cluster is fully installed and running on an on-premesis compute infrastructure. A DNS service for the cluster nodesMay applications, including SUSE CAP, require additional resources such as a default Storage Class to be configured.
+ATTENTION: This guide assumes a SUSE CaaS Platform cluster is fully installed and running on an on-premesis compute infrastructure and DNS service for the cluster nodes. The Kubernetes applications, including SUSE CAP, require additional resources such as a default Storage Class to be configured.
 
 NOTE: Specifically for supporting SUSE CAP, a wild-card DNS record that matches the SVC_FQDN below must be created as part of the CAP deployment process. This procedure enables associating the SVC_FQDN with the first IP address in the load balancers range of reserved IP addresses (DEFAULT_IP_RANGE_START)
 
 ### Create and populate a variables file (i.e. ngnix-metallb.vars) on the administrative workstation from which the kubectl and helm commands will be run:
 
+TIP: These variables can be populated and used to generate the root CA private key and x509 cerficate, then updated to create the site (application) private key and certificate; or the same information can be used for both (only for testing and sandbox environments).
+
 ----
-### START Variables for creating the TSL/SSL certificates and keys ###
-# Name of the root CA file. (.key will be appended to it during key creation)
+### START Variables for creating the TSL certificates and keys ###
+### IMPORTANT: Spaces are not allowed in any field!
+# Name of the root CA
 export ROOTCA_NAME=
-# (OPTIONAL) Document the root CA cert passphrase here or somewhere else
+# (OPTIONAL) Take note of the root CA cert passphrase here 
 ROOTCA_PASSPHRASE=
 ## Document the values to used in creating the root CA certificate:
 # Two letter country code
@@ -47,27 +50,43 @@ export CAP_IP_RANGE_END=
 
 
 
-### Create the TLS/SSL certificates and keys
+### Create the TLS certificates and keys
 
 .Source the variables file (i.e. `source ngnix-metallb.vars`), then run the following commands
 
-* Assign the passphrase
+* Generate the 2048 bit root CA private key using des3 encryption
+** Set the root CA private key passphrase when prompted
 ----
 openssl genrsa -des3 -out ${ROOTCA_NAME}.key 2048
 ----
-* Provide the root CA private key passphrase when prompted
+
+* Generate the root CA TLS certificate
+** Provide the root CA private key passphrase to generate the root CA public key from the root CA private key
 ----
 openssl req -x509 -new -nodes -key ${ROOTCA_NAME}.key  -subj "/C=${COUNTRY_NAME}/ST=${STATE_NAME}/L=${LOCALITY_NAME}/O=${ORGANIZATION_NAME}/OU=${ORGANIZATIONAL_UNIT_NAME}/CN=${COMMON_NAME}/emailAddress=${EMAIL_ADDRESS}" -sha256 -days 1825 -out ${ROOTCA_NAME}.pem
 ----
-* Generate the site private key
+
+* (Optional): Verify the contents of the root CA TLS certificate: `openssl x509 -noout -text -in ${ROOTCA_NAME}.pem  | less`
+
+NOTE: What makes this a root CA is that the `Subject Key Identifier` and the `Authority Key Identifier` are the same, meaning there is no authority higher than this CA.
+
+TIP: If different information is required (i.e. Subject name, OU, email address) for the site certificate, update the variables file (DON'T FORGET TO SOURCE IT!) before continuing.
+
+* Generate the 2048 bit site (aka Subjet) private key using RSA encryption
 ----
 openssl genrsa -out ${SVC_FQDN}.key 2048
 ----
+
 * Generate the site certificate signing request
 ----
 openssl req -new -key ${SVC_FQDN}.key -subj "/C=${COUNTRY_NAME}/ST=${STATE_NAME}/L=${LOCALITY_NAME}/O=${ORGANIZATION_NAME}/OU=${ORGANIZATIONAL_UNIT_NAME}/CN=${COMMON_NAME}/emailAddress=${EMAIL_ADDRESS}" -out ${SVC_FQDN}.csr
 ----
-* Create the .ext file
+
+* (Optional): Verify the contents of the Certificate Signing Request: `openssl req -noout -text -in ${SVC_FQDN}.csr | less`
+
+NOTE: The CSR is little more than identifying information for the subject (the entity requesting a TLS cert), the primary URL that the TLS cert will cover, and the public key for it.
+
+* Create the extensions file. This is used to enhance the resulting TLS certificate with extra features such as Subject Alternaete Names that this certificate will cover (Note that a single private/public key pair will be used by the primary site and all of the sites listed here):
 ----
 cat <<EOF> ${SVC_FQDN}.ext
 authorityKeyIdentifier=keyid,issuer
@@ -89,12 +108,13 @@ DNS.3 = uaa.${SVC_FQDN}
 DNS.4 = *.uaa.${SVC_FQDN}
 EOF
 ----
-* Create the x509 cert
+* Create the site TLS (x509) certificate
 ** Provide the root CA private key passphrase when prompted
 ----
 openssl x509 -req -in ${SVC_FQDN}.csr -CA ${ROOTCA_NAME}.pem -CAkey ${ROOTCA_NAME}.key -CAcreateserial -out ${SVC_FQDN}.crt -days 1825 -sha256 -extfile ${SVC_FQDN}.ext
 ----
-* (OPTIONAL) Verify the cert public key, site private key, and certificate signing request files were created correctly and all match
+
+* (OPTIONAL) Verify the site certificate public key, site private key, and certificate signing request files were created correctly and all match
 ** The resulting md5 hashes should all be the same
 ----
 openssl x509 -noout -modulus -in ${SVC_FQDN}.crt | openssl md5
